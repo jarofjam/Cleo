@@ -1,4 +1,4 @@
-package com.cleo;
+package cleo;
 
 import java.io.BufferedReader;
 import java.io.IOException;

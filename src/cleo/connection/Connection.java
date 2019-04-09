@@ -1,4 +1,4 @@
-package com.cleo;
+package cleo.connection;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -18,12 +18,16 @@ public class Connection {
         this.in = new ObjectInputStream(socket.getInputStream());
     }
 
-    public void send(String message) throws IOException {
-        out.writeObject(message);
+    public void send(Message message) throws IOException {
+        synchronized (out) {
+            out.writeObject(message);
+        }
     }
 
-    public String receive() throws IOException, ClassNotFoundException {
-        return (String) in.readObject();
+    public Message receive() throws IOException, ClassNotFoundException {
+        synchronized (in) {
+            return (Message) in.readObject();
+        }
     }
 
     public SocketAddress getRemoteSocketAddress() {
