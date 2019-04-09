@@ -7,8 +7,12 @@ import cleo.connection.Message;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Server {
+
+    private static Map<String, Connection> connectionMap = new ConcurrentHashMap<String, Connection>();
 
     public static void main(String[] args) {
         try (
@@ -26,6 +30,17 @@ public class Server {
         }
     }
 
+    public static void sendBroadcastMessage(Message message) {
+        try {
+            for (Map.Entry<String, Connection> user : connectionMap.entrySet()) {
+                user.getValue().send(message);
+            }
+        } catch (IOException e) {
+            ConsoleUtils.writeMessage("Error sending message: \n" + e.getMessage());
+        }
+    }
+
+
     private static class ClientConnectionHandler extends Thread {
         private Socket socket;
 
@@ -37,30 +52,62 @@ public class Server {
         public void run() {
             ConsoleUtils.writeMessage("A new connection has been established with " + socket.getRemoteSocketAddress());
 
+            String userName;
             try (
                 Connection connection = new Connection(socket)
             ) {
-                processIncomingData(connection);
+                userName = serverHandshake(connection);
+                processIncomingData(userName, connection);
 
             } catch (IOException|ClassNotFoundException e) {
                 ConsoleUtils.writeMessage(
-                        "Ошибка при обмене данными с удаленным адресом " +
-                                socket.getRemoteSocketAddress() + ":\n" +
-                                e.getMessage()
+                        "Error communicating with remote address " +
+                        socket.getRemoteSocketAddress() + ":\n" +
+                        e.getMessage()
                 );
             }
         }
 
-        private void processIncomingData(Connection connection) throws IOException, ClassNotFoundException {
+        private String serverHandshake(Connection connection) throws IOException, ClassNotFoundException {
+            connection.send(new Message(Message.Type.NAME_REQUEST));
+
+            while(true) {
+                Message response = connection.receive();
+
+                if (response.getType() != Message.Type.NAME_RESPONSE) {
+                    connection.send(new Message(Message.Type.NAME_REQUEST, "Unexpected message type"));
+                    continue;
+                }
+
+                String userName = response.getData();
+                if (userName == null || "".equals(userName)) {
+                    connection.send(new Message(
+                            Message.Type.NAME_REQUEST, "Invalid username"));
+                    continue;
+                }
+
+                if (connectionMap.containsKey(userName)) {
+                    connection.send(new Message(Message.Type.NAME_REQUEST, "Username already taken"));
+                    continue;
+                }
+
+                connectionMap.put(userName, connection);
+                connection.send(new Message(Message.Type.NAME_ACCEPTED));
+
+                return userName;
+            }
+        }
+
+        private void processIncomingData(String userName, Connection connection) throws IOException, ClassNotFoundException {
             while (true) {
                 Message message = connection.receive();
 
-                if (message.getType() == Message.Type.TEXT)
-                    ConsoleUtils.writeMessage("Received message from: " + connection.getRemoteSocketAddress());
-                    ConsoleUtils.writeMessage("\t" + message.getData());
+                if (message.getType() != Message.Type.TEXT) {
+                    ConsoleUtils.writeMessage("Unexpected message type (message from " + userName + ")");
+                    continue;
+                }
 
-                    ConsoleUtils.writeMessage("Sending it back");
-                    connection.send(message);
+                sendBroadcastMessage(new Message(Message.Type.TEXT, userName + ": " + message.getData()));
             }
         }
     }

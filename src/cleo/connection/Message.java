@@ -26,6 +26,9 @@ public class Message implements Serializable {
     }
 
     public enum Type {
+        NAME_REQUEST,
+        NAME_RESPONSE,
+        NAME_ACCEPTED,
         TEXT;
     }
 }

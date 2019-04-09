@@ -67,6 +67,11 @@ public class Client {
         return ConsoleUtils.readInt();
     }
 
+    private String getUserName() {
+        ConsoleUtils.writeMessage("Enter username");
+        return ConsoleUtils.readString();
+    }
+
     private class ConnectionDaemon extends Thread {
         @Override
         public void run() {
@@ -74,12 +79,38 @@ public class Client {
                 Socket socket = new Socket(getServerAddress(), getServerPort())
             ) {
                 connection = new Connection(socket);
-                notifyConnectionStatusChanged(true);
 
+                clientHandshake();
                 processIncomingData();
+
             } catch (IOException|ClassNotFoundException e) {
                 notifyConnectionStatusChanged(false);
             }
+        }
+
+        private void clientHandshake() throws IOException, ClassNotFoundException {
+            while (true) {
+                Message request = connection.receive();
+
+                if (request.getType() == Message.Type.NAME_REQUEST) {
+                    if (request.getData() != null)
+                        informAboutProblem(request.getData());
+
+                    connection.send(new Message(Message.Type.NAME_RESPONSE, getUserName()));
+                    continue;
+                }
+
+                if (request.getType() == Message.Type.NAME_ACCEPTED) {
+                    notifyConnectionStatusChanged(true);
+                    break;
+                }
+
+                throw new IOException("Unexpected message type");
+            }
+        }
+
+        private void informAboutProblem(String message) {
+            ConsoleUtils.writeMessage(message);
         }
 
         private void processIncomingData() throws IOException, ClassNotFoundException {
