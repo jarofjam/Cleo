@@ -16,9 +16,7 @@ public class Client {
     }
 
     public void run() {
-        ConnectionDaemon connectionDaemon = new ConnectionDaemon();
-        connectionDaemon.setDaemon(true);
-        connectionDaemon.start();
+        createConnectionDaemon().start();
 
         synchronized (this) {
             try {
@@ -43,6 +41,12 @@ public class Client {
 
             sendTextMessage(textMessage);
         }
+    }
+
+    private ConnectionDaemon createConnectionDaemon() {
+        ConnectionDaemon connectionDaemon = new ConnectionDaemon();
+        connectionDaemon.setDaemon(true);
+        return connectionDaemon;
     }
 
     private void sendTextMessage(String messageText) {

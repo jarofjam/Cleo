@@ -1,12 +1,13 @@
 package cleo.connection;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketAddress;
 
-public class Connection {
+public class Connection implements Closeable {
 
     private final Socket socket;
     private final ObjectOutputStream out;
