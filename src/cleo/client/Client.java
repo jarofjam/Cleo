@@ -119,6 +119,9 @@ public class Client {
 
                 if (message.getType() == Message.Type.TEXT)
                     displayMessage(message);
+
+                if (message.getType() == Message.Type.INFORMATION)
+                    displayInformation(message);
             }
         }
 
@@ -131,7 +134,22 @@ public class Client {
         }
 
         private void displayMessage(Message message) {
-            ConsoleUtils.writeMessage(message.getData());
+            ConsoleUtils.writeMessage("[" +
+                    message.getCreated().getHours() + ":" +
+                    message.getCreated().getMinutes() + ":" +
+                    message.getCreated().getSeconds() + "] " +
+                    message.getData());
+        }
+
+        private void displayInformation(Message message) {
+            ConsoleUtils.writeMessage(
+                    "\u001B[33m[" +
+                    message.getCreated().getHours() + ":" +
+                    message.getCreated().getMinutes() + ":" +
+                    message.getCreated().getSeconds() + "] " +
+                    message.getData() +
+                    "\u001B[0m"
+            );
         }
     }
 }

@@ -30,7 +30,8 @@ public class Server {
         }
     }
 
-    public static void sendBroadcastMessage(Message message) {
+    public static void sendBroadcastText(String text) {
+        Message message = new Message(Message.Type.TEXT, text);
         try {
             for (Map.Entry<String, Connection> user : connectionMap.entrySet()) {
                 user.getValue().send(message);
@@ -40,6 +41,16 @@ public class Server {
         }
     }
 
+    private static void sendBroadcastInformation(String information) {
+        Message message = new Message(Message.Type.INFORMATION, information);
+        try {
+            for (Map.Entry<String, Connection> user : connectionMap.entrySet()) {
+                user.getValue().send(message);
+            }
+        } catch (IOException e) {
+            ConsoleUtils.writeMessage("Error sending information: \n" + e.getMessage());
+        }
+    }
 
     private static class ClientConnectionHandler extends Thread {
         private Socket socket;
@@ -52,11 +63,13 @@ public class Server {
         public void run() {
             ConsoleUtils.writeMessage("A new connection has been established with " + socket.getRemoteSocketAddress());
 
-            String userName;
+            String userName = null;
             try (
                 Connection connection = new Connection(socket)
             ) {
                 userName = serverHandshake(connection);
+                sendBroadcastInformation(userName + " joined the group");
+
                 processIncomingData(userName, connection);
 
             } catch (IOException|ClassNotFoundException e) {
@@ -65,6 +78,11 @@ public class Server {
                         socket.getRemoteSocketAddress() + ":\n" +
                         e.getMessage()
                 );
+            } finally {
+                if (userName != null) {
+                    connectionMap.remove(userName);
+                    sendBroadcastInformation(userName + " left the group");
+                }
             }
         }
 
@@ -103,11 +121,13 @@ public class Server {
                 Message message = connection.receive();
 
                 if (message.getType() != Message.Type.TEXT) {
-                    ConsoleUtils.writeMessage("Unexpected message type (message from " + userName + ")");
+                    ConsoleUtils.writeMessage(
+                            "Incoming data processing error." +
+                            "Unexpected message type (message from " + userName + ")");
                     continue;
                 }
 
-                sendBroadcastMessage(new Message(Message.Type.TEXT, userName + ": " + message.getData()));
+                sendBroadcastText(userName + ": " + message.getData());
             }
         }
     }
