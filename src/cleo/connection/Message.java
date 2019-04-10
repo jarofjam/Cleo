@@ -33,6 +33,14 @@ public class Message implements Serializable {
         this.created = new Date();
     }
 
+    public String getTimestamp() {
+        return "[" +
+                    created.getHours() + ":" +
+                    created.getMinutes() + ":" +
+                    created.getSeconds() +
+                "] ";
+    }
+
     public enum Type {
         NAME_REQUEST,
         NAME_RESPONSE,

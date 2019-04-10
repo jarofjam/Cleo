@@ -6,16 +6,23 @@ import cleo.connection.Message;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Client {
     private Connection connection;
     private volatile boolean clientConnected = false;
+    private String userName;
+
+    private Map<String, String> messageColors;
 
     public static void main(String[] args) {
         new Client().run();
     }
 
     public void run() {
+        setMessageColors();
+
         createConnectionDaemon().start();
 
         synchronized (this) {
@@ -72,6 +79,14 @@ public class Client {
         return ConsoleUtils.readString();
     }
 
+    private void setMessageColors() {
+        messageColors = new HashMap<String, String>() {{
+            put("default", "\u001B[0m");
+            put("information", "\u001B[33m");
+            put("mention", "\u001B[31m");
+        }};
+    }
+
     private class ConnectionDaemon extends Thread {
         @Override
         public void run() {
@@ -89,6 +104,7 @@ public class Client {
         }
 
         private void clientHandshake() throws IOException, ClassNotFoundException {
+            String userName = null;
             while (true) {
                 Message request = connection.receive();
 
@@ -96,11 +112,14 @@ public class Client {
                     if (request.getData() != null)
                         informAboutProblem(request.getData());
 
-                    connection.send(new Message(Message.Type.NAME_RESPONSE, getUserName()));
+                    userName = getUserName();
+
+                    connection.send(new Message(Message.Type.NAME_RESPONSE, userName));
                     continue;
                 }
 
                 if (request.getType() == Message.Type.NAME_ACCEPTED) {
+                    Client.this.userName = userName;
                     notifyConnectionStatusChanged(true);
                     break;
                 }
@@ -118,7 +137,10 @@ public class Client {
                 Message message = connection.receive();
 
                 if (message.getType() == Message.Type.TEXT)
-                    displayMessage(message);
+                    if (message.getData().contains("@" + userName))
+                        displayMention(message);
+                    else
+                        displayMessage(message);
 
                 if (message.getType() == Message.Type.INFORMATION)
                     displayInformation(message);
@@ -134,21 +156,26 @@ public class Client {
         }
 
         private void displayMessage(Message message) {
-            ConsoleUtils.writeMessage("[" +
-                    message.getCreated().getHours() + ":" +
-                    message.getCreated().getMinutes() + ":" +
-                    message.getCreated().getSeconds() + "] " +
+            ConsoleUtils.writeMessage(
+                    message.getTimestamp() +
                     message.getData());
         }
 
         private void displayInformation(Message message) {
             ConsoleUtils.writeMessage(
-                    "\u001B[33m[" +
-                    message.getCreated().getHours() + ":" +
-                    message.getCreated().getMinutes() + ":" +
-                    message.getCreated().getSeconds() + "] " +
+                    messageColors.get("information") +
+                    message.getTimestamp() +
                     message.getData() +
-                    "\u001B[0m"
+                    messageColors.get("default")
+            );
+        }
+
+        private void displayMention(Message message) {
+            ConsoleUtils.writeMessage(
+                    messageColors.get("mention") +
+                    message.getTimestamp() +
+                    message.getData() +
+                    messageColors.get("default")
             );
         }
     }
